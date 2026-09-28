@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>内网文件共享</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #697386;
+      --line: #e5e9f2;
+      --primary: #3157d5;
+      --primary-hover: #2748b8;
+      --danger: #c9384c;
+      --success: #15845a;
+      --shadow: 0 18px 50px rgba(30, 47, 90, .10);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(81, 111, 226, .14), transparent 30%),
+        radial-gradient(circle at 90% 85%, rgba(40, 179, 138, .10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .page { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    .center-shell { min-height: 100vh; display: grid; place-items: center; padding: 30px 0; }
+    .auth-card {
+      width: min(520px, 100%);
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid rgba(255,255,255,.8);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      padding: 34px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+    .brand-mark {
+      width: 48px; height: 48px; border-radius: 15px;
+      display: grid; place-items: center; color: white; font-size: 24px;
+      background: linear-gradient(135deg, #3157d5, #6b8cff);
+      box-shadow: 0 10px 24px rgba(49, 87, 213, .25);
+    }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 20px; }
+    .subtle { color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .field { display: grid; gap: 8px; margin-top: 18px; }
+    .field label { font-size: 14px; font-weight: 650; }
+    .input, .folder-input {
+      width: 100%; border: 1px solid #d9dfeb; border-radius: 12px;
+      background: white; color: var(--text); padding: 12px 14px; outline: none;
+      transition: border .15s, box-shadow .15s;
+    }
+    .input:focus, .folder-input:focus { border-color: #6d88e7; box-shadow: 0 0 0 4px rgba(49,87,213,.10); }
+    .folder-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+    .btn {
+      border: 0; border-radius: 11px; padding: 11px 16px; font-weight: 650;
+      color: #344054; background: #edf1f7; transition: transform .12s, background .12s;
+    }
+    .btn:hover { background: #e2e8f2; }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .btn-primary { color: white; background: var(--primary); }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { color: white; background: var(--danger); }
+    .btn-ghost { background: transparent; border: 1px solid var(--line); }
+    .btn-wide { width: 100%; margin-top: 24px; }
+    .message { min-height: 22px; margin-top: 14px; color: var(--danger); font-size: 14px; }
+    .notice {
+      padding: 13px 15px; border-radius: 12px; background: #eef3ff;
+      color: #324eab; font-size: 14px; line-height: 1.65; margin: 18px 0;
+    }
+
+    .app-header {
+      position: sticky; top: 0; z-index: 10; background: rgba(247, 249, 253, .88);
+      backdrop-filter: blur(16px); border-bottom: 1px solid rgba(215,222,236,.8);
+    }
+    .header-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .compact-brand { display: flex; align-items: center; gap: 11px; font-weight: 760; }
+    .compact-brand .brand-mark { width: 38px; height: 38px; border-radius: 12px; font-size: 19px; box-shadow: none; }
+    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .user-pill { padding: 9px 12px; border-radius: 999px; background: white; border: 1px solid var(--line); font-size: 13px; }
+    .app-main { padding: 26px 0 44px; }
+    .address-card, .file-card {
+      background: rgba(255,255,255,.96); border: 1px solid rgba(226,231,240,.95);
+      border-radius: var(--radius); box-shadow: 0 10px 34px rgba(43,62,110,.06);
+    }
+    .address-card { padding: 18px 20px; margin-bottom: 18px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    .address-title { min-width: 145px; }
+    .address-title strong { display: block; margin-bottom: 3px; }
+    .address-list { display: flex; gap: 8px; flex-wrap: wrap; }
+    .address-chip {
+      border: 1px solid #dce3f1; background: #f8faff; color: #3854a5;
+      padding: 8px 11px; border-radius: 10px; font: 13px ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    .file-card { overflow: hidden; }
+    .toolbar { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .toolbar-spacer { flex: 1; }
+    .breadcrumb { padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 52px; }
+    .crumb { border: 0; background: transparent; color: var(--primary); padding: 4px 5px; border-radius: 6px; }
+    .crumb:hover { background: #edf2ff; }
+    .crumb-sep { color: #a6afc0; }
+    .file-table { width: 100%; border-collapse: collapse; }
+    .file-table th { text-align: left; color: var(--muted); font-size: 12px; font-weight: 650; padding: 11px 18px; background: #fafbfe; }
+    .file-table td { padding: 13px 18px; border-top: 1px solid #eef1f6; font-size: 14px; }
+    .file-table tbody tr:hover { background: #f8faff; }
+    .name-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .file-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: #edf2ff; font-size: 18px; flex: 0 0 auto; }
+    .file-name { border: 0; background: transparent; color: var(--text); text-align: left; padding: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
+    .file-name:hover { color: var(--primary); }
+    .row-actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .icon-btn { border: 1px solid var(--line); background: white; color: #526079; padding: 7px 9px; border-radius: 8px; font-size: 12px; }
+    .icon-btn:hover { border-color: #b9c6e4; color: var(--primary); }
+    .icon-btn.delete:hover { border-color: #e8bac1; color: var(--danger); background: #fff6f7; }
+    .empty { padding: 64px 20px; text-align: center; color: var(--muted); }
+    .empty-icon { font-size: 46px; margin-bottom: 12px; opacity: .75; }
+    .statusbar { padding: 12px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; }
+    .progress-wrap { padding: 12px 18px; border-bottom: 1px solid var(--line); background: #f7f9ff; }
+    .progress-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
+    .progress { height: 7px; border-radius: 999px; overflow: hidden; background: #dfe6f5; }
+    .progress > div { width: 0; height: 100%; background: linear-gradient(90deg, #3157d5, #6987f1); transition: width .15s; }
+    .toast {
+      position: fixed; right: 22px; bottom: 22px; z-index: 50; min-width: 250px; max-width: min(430px, calc(100% - 44px));
+      color: white; background: #26324a; border-radius: 12px; box-shadow: var(--shadow); padding: 13px 16px;
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s;
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.error { background: #a72f42; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(23,32,51,.46); display: grid; place-items: center; padding: 20px; }
+    .modal { width: min(520px, 100%); background: white; border-radius: 18px; padding: 24px; box-shadow: var(--shadow); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+
+    @media (max-width: 760px) {
+      .page { width: min(100% - 20px, 1180px); }
+      .auth-card { padding: 25px 20px; }
+      .header-inner { min-height: 64px; }
+      .compact-brand span:last-child { display: none; }
+      .user-pill { display: none; }
+      .address-card { align-items: flex-start; }
+      .toolbar .btn span { display: none; }
+      .file-table th:nth-child(2), .file-table td:nth-child(2), .file-table th:nth-child(3), .file-table td:nth-child(3) { display: none; }
+      .file-table th, .file-table td { padding-left: 12px; padding-right: 12px; }
+      .file-name { max-width: 42vw; }
+      .row-actions .rename { display: none; }
+      .statusbar { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <section id="setupView" class="center-shell hidden">
+    <div class="page"><div class="auth-card">
+      <div class="brand"><div class="brand-mark">↗</div><div><h1>内网文件共享</h1><div class="subtle">首次设置，只需在主电脑完成一次</div></div></div>
+      <div class="notice">请选择主电脑上的一个文件夹。以后其他电脑上传和更新的文件都会保存在这里。</div>
+      <form id="setupForm">
+        <div class="field"><label for="setupFolder">共享文件夹</label><div class="folder-row"><input id="setupFolder" class="folder-input" placeholder="请选择本地文件夹" readonly required><button id="setupPick" class="btn" type="button">选择文件夹</button></div></div>
+        <div class="field"><label for="setupUsername">管理员账号</label><input id="setupUsername" class="input" value="admin" autocomplete="username" maxlength="32" required></div>
+        <div class="field"><label for="setupPassword">管理员密码</label><input id="setupPassword" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" placeholder="至少 8 个字符" required></div>
+        <div class="field"><label for="setupConfirm">再次输入密码</label><input id="setupConfirm" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+        <button id="setupSubmit" class="btn btn-primary btn-wide" type="submit">完成设置并开始共享</button>
+        <div id="setupMessage" class="message"></div>
+      </form>
+    </div></div>
+  </section>
+
+  <section id="waitingView" class="center-shell hidden">
+    <div class="page"><div class="auth-card">
+      <div class="brand"><div class="brand-mark">↗</div><div><h1>等待主电脑设置</h1><div class="subtle">内网文件共享服务已经启动</div></div></div>
+      <div class="notice">请先在主电脑打开本页面，选择共享文件夹并设置管理员账号。设置完成后刷新此页面即可登录。</div>
+      <button class="btn btn-primary btn-wide" onclick="location.reload()">重新检查</button>
+    </div></div>
+  </section>
+
+  <section id="loginView" class="center-shell hidden">
+    <div class="page"><div class="auth-card">
+      <div class="brand"><div class="brand-mark">↗</div><div><h1>内网文件共享</h1><div class="subtle">登录后访问主电脑上的共享文件</div></div></div>
+      <form id="loginForm">
+        <div class="field"><label for="loginUsername">账号</label><input id="loginUsername" class="input" autocomplete="username" required></div>
+        <div class="field"><label for="loginPassword">密码</label><input id="loginPassword" class="input" type="password" autocomplete="current-password" required></div>
+        <button id="loginSubmit" class="btn btn-primary btn-wide" type="submit">登录</button>
+        <div id="loginMessage" class="message"></div>
+      </form>
+    </div></div>
+  </section>
+
+  <section id="appView" class="hidden">
+    <header class="app-header"><div class="page header-inner">
+      <div class="compact-brand"><div class="brand-mark">↗</div><span>内网文件共享</span></div>
+      <div class="header-actions"><span id="userPill" class="user-pill"></span><button id="settingsBtn" class="btn btn-ghost hidden">设置</button><button id="logoutBtn" class="btn btn-ghost">退出</button></div>
+    </div></header>
+    <main class="page app-main">
+      <div class="address-card">
+        <div class="address-title"><strong>其他电脑访问地址</strong><span class="subtle">点击地址即可复制</span></div>
+        <div id="addressList" class="address-list"></div>
+      </div>
+      <div class="file-card">
+        <div class="toolbar">
+          <button id="upBtn" class="btn"><b>↑</b> <span>上一级</span></button>
+          <button id="newFolderBtn" class="btn"><b>＋</b> <span>新建文件夹</span></button>
+          <button id="uploadBtn" class="btn btn-primary"><b>⇧</b> <span>上传文件</span></button>
+          <input id="fileInput" type="file" multiple class="hidden">
+          <div class="toolbar-spacer"></div>
+          <button id="refreshBtn" class="btn btn-ghost">刷新</button>
+        </div>
+        <div id="uploadProgress" class="progress-wrap hidden"><div class="progress-head"><span id="progressName">正在上传</span><span id="progressText">0%</span></div><div class="progress"><div id="progressBar"></div></div></div>
+        <nav id="breadcrumb" class="breadcrumb"></nav>
+        <div id="fileArea"></div>
+        <div class="statusbar"><span id="fileCount">0 个项目</span><span id="sharePath"></span></div>
+      </div>
+    </main>
+  </section>
+
+  <div id="settingsModal" class="modal-backdrop hidden"><div class="modal">
+    <h2>主电脑设置</h2><p class="subtle">更换共享目录后，原目录中的文件不会被删除，但其他电脑将看到新目录。</p>
+    <div class="field"><label>当前共享文件夹</label><div class="folder-row"><input id="settingsFolder" class="folder-input" readonly><button id="settingsPick" class="btn" type="button">重新选择</button></div></div>
+    <div class="modal-actions"><button id="shutdownBtn" class="btn btn-danger">停止共享服务</button><div style="flex:1"></div><button id="settingsCancel" class="btn">取消</button><button id="settingsSave" class="btn btn-primary">保存</button></div>
+  </div></div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const state = { status: null, me: null, csrf: "", currentPath: "", entries: [] };
+    const $ = (id) => document.getElementById(id);
+    const views = ["setupView", "waitingView", "loginView", "appView"];
+
+    function showView(id) { views.forEach(v => $(v).classList.toggle("hidden", v !== id)); }
+    function setBusy(button, busy, text) {
+      if (!button.dataset.label) button.dataset.label = button.textContent;
+      button.disabled = busy;
+      button.textContent = busy ? text : button.dataset.label;
+    }
+    function showMessage(id, message) { $(id).textContent = message || ""; }
+    let toastTimer;
+    function toast(message, error = false) {
+      const el = $("toast"); el.textContent = message; el.className = "toast show" + (error ? " error" : "");
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => el.className = "toast", 3200);
+    }
+
+    async function api(url, options = {}) {
+      const opts = { credentials: "same-origin", ...options, headers: { ...(options.headers || {}) } };
+      if (options.json !== undefined) {
+        opts.method = opts.method || "POST";
+        opts.headers["Content-Type"] = "application/json";
+        opts.body = JSON.stringify(options.json);
+        delete opts.json;
+      }
+      if (state.csrf && opts.method && opts.method !== "GET") opts.headers["X-CSRF-Token"] = state.csrf;
+      const response = await fetch(url, opts);
+      const type = response.headers.get("content-type") || "";
+      const data = type.includes("application/json") ? await response.json() : null;
+      if (!response.ok) {
+        if (response.status === 401 && !url.includes("/login")) { state.me = null; state.csrf = ""; showView("loginView"); }
+        throw new Error(data?.error || `请求失败（${response.status}）`);
+      }
+      return data;
+    }
+
+    async function initialize() {
+      try {
+        state.status = await api("/api/status");
+        if (!state.status.configured) { showView(state.status.local ? "setupView" : "waitingView"); return; }
+        try {
+          state.me = await api("/api/me"); state.csrf = state.me.csrf; await openApp();
+        } catch { showView("loginView"); }
+      } catch (error) {
+        document.body.innerHTML = `<div class="center-shell"><div class="auth-card"><h1>无法连接服务</h1><p class="subtle">${escapeHTML(error.message)}</p><button class="btn btn-primary btn-wide" onclick="location.reload()">重新加载</button></div></div>`;
+      }
+    }
+
+    $("setupPick").addEventListener("click", () => chooseFolder($("setupFolder"), $("setupPick"), false));
+    $("setupForm").addEventListener("submit", async (event) => {
+      event.preventDefault(); showMessage("setupMessage", "");
+      const password = $("setupPassword").value;
+      if (password !== $("setupConfirm").value) { showMessage("setupMessage", "两次输入的密码不一致"); return; }
+      const button = $("setupSubmit"); setBusy(button, true, "正在保存…");
+      try {
+        const result = await api("/api/setup", { json: { username: $("setupUsername").value, password, folder: $("setupFolder").value } });
+        state.csrf = result.csrf; state.status.configured = true; state.me = await api("/api/me"); await openApp();
+      } catch (error) { showMessage("setupMessage", error.message); }
+      finally { setBusy(button, false); }
+    });
+
+    $("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault(); showMessage("loginMessage", "");
+      const button = $("loginSubmit"); setBusy(button, true, "正在登录…");
+      try {
+        const result = await api("/api/login", { json: { username: $("loginUsername").value, password: $("loginPassword").value } });
+        state.csrf = result.csrf; state.me = await api("/api/me"); $("loginPassword").value = ""; await openApp();
+      } catch (error) { showMessage("loginMessage", error.message); }
+      finally { setBusy(button, false); }
+    });
+
+    async function chooseFolder(input, button, authenticated) {
+      setBusy(button, true, "请选择…");
+      try {
+        const headers = authenticated && state.csrf ? { "X-CSRF-Token": state.csrf } : {};
+        const result = await api("/api/pick-folder", { method: "POST", headers }); input.value = result.folder;
+      } catch (error) { if (!error.message.includes("未选择目录")) toast(error.message, true); }
+      finally { setBusy(button, false); }
+    }
+
+    async function openApp() {
+      showView("appView");
+      $("userPill").textContent = `👤 ${state.me.username}`;
+      $("settingsBtn").classList.toggle("hidden", !state.me.local);
+      $("sharePath").textContent = state.me.local && state.me.shareDir ? `共享目录：${state.me.shareDir}` : "";
+      renderAddresses(state.me.addresses || state.status.addresses || []);
+      await loadFiles("");
+    }
+
+    function renderAddresses(addresses) {
+      const list = $("addressList"); list.replaceChildren();
+      addresses.filter(a => !a.includes("127.0.0.1") || addresses.length === 1).forEach(address => {
+        const button = document.createElement("button"); button.className = "address-chip"; button.textContent = address;
+        button.addEventListener("click", async () => { try { await navigator.clipboard.writeText(address); toast("访问地址已复制"); } catch { toast("请手动复制地址", true); } });
+        list.appendChild(button);
+      });
+    }
+
+    async function loadFiles(path = state.currentPath) {
+      try {
+        const result = await api(`/api/files?path=${encodeURIComponent(path)}`);
+        state.currentPath = result.path || ""; state.entries = result.entries || [];
+        renderBreadcrumb(); renderEntries();
+      } catch (error) { toast(error.message, true); }
+    }
+
+    function renderBreadcrumb() {
+      const container = $("breadcrumb"); container.replaceChildren();
+      const root = document.createElement("button"); root.className = "crumb"; root.textContent = "共享文件"; root.addEventListener("click", () => loadFiles("")); container.appendChild(root);
+      let running = "";
+      state.currentPath.split("/").filter(Boolean).forEach(part => {
+        const sep = document.createElement("span"); sep.className = "crumb-sep"; sep.textContent = "/"; container.appendChild(sep);
+        running = running ? `${running}/${part}` : part;
+        const target = running;
+        const button = document.createElement("button"); button.className = "crumb"; button.textContent = part; button.addEventListener("click", () => loadFiles(target)); container.appendChild(button);
+      });
+      $("upBtn").disabled = !state.currentPath;
+    }
+
+    function renderEntries() {
+      const area = $("fileArea"); area.replaceChildren();
+      $("fileCount").textContent = `${state.entries.length} 个项目`;
+      if (!state.entries.length) {
+        const empty = document.createElement("div"); empty.className = "empty"; empty.innerHTML = '<div class="empty-icon">📂</div><strong>这个文件夹还是空的</strong><div class="subtle">点击“上传文件”添加内容</div>'; area.appendChild(empty); return;
+      }
+      const table = document.createElement("table"); table.className = "file-table";
+      table.innerHTML = "<thead><tr><th>名称</th><th>大小</th><th>修改时间</th><th style=\"text-align:right\">操作</th></tr></thead>";
+      const body = document.createElement("tbody");
+      state.entries.forEach(entry => {
+        const row = document.createElement("tr");
+        const nameCell = document.createElement("td");
+        const wrap = document.createElement("div"); wrap.className = "name-cell";
+        const icon = document.createElement("span"); icon.className = "file-icon"; icon.textContent = entry.isDir ? "📁" : fileIcon(entry.extension);
+        const name = document.createElement("button"); name.className = "file-name"; name.textContent = entry.name;
+        name.addEventListener("click", () => entry.isDir ? loadFiles(entry.path) : download(entry.path));
+        wrap.append(icon, name); nameCell.appendChild(wrap);
+        const size = document.createElement("td"); size.textContent = entry.isDir ? "—" : formatBytes(entry.size);
+        const modified = document.createElement("td"); modified.textContent = formatDate(entry.modified);
+        const actionsCell = document.createElement("td"); const actions = document.createElement("div"); actions.className = "row-actions";
+        if (!entry.isDir) actions.appendChild(actionButton("下载", () => download(entry.path)));
+        actions.appendChild(actionButton("重命名", () => renameEntry(entry), "rename"));
+        actions.appendChild(actionButton("删除", () => deleteEntry(entry), "delete"));
+        actionsCell.appendChild(actions); row.append(nameCell, size, modified, actionsCell); body.appendChild(row);
+      });
+      table.appendChild(body); area.appendChild(table);
+    }
+
+    function actionButton(label, handler, extra = "") { const button = document.createElement("button"); button.className = `icon-btn ${extra}`; button.textContent = label; button.addEventListener("click", handler); return button; }
+    function fileIcon(ext) { return ({ pdf:"📕", jpg:"🖼️", jpeg:"🖼️", png:"🖼️", gif:"🖼️", webp:"🖼️", doc:"📘", docx:"📘", xls:"📗", xlsx:"📗", ppt:"📙", pptx:"📙", zip:"🗜️", rar:"🗜️", "7z":"🗜️", mp4:"🎬", mov:"🎬", mp3:"🎵", wav:"🎵" })[ext] || "📄"; }
+    function formatBytes(bytes) { if (!Number.isFinite(bytes)) return "—"; const units=["B","KB","MB","GB","TB"]; let i=0,n=bytes; while(n>=1024&&i<units.length-1){n/=1024;i++;} return `${n.toFixed(i?1:0)} ${units[i]}`; }
+    function formatDate(value) { const d=new Date(value); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("zh-CN", {hour12:false}); }
+    function parentPath(path) { const parts=path.split("/").filter(Boolean); parts.pop(); return parts.join("/"); }
+    function download(path) { location.href = `/api/download?path=${encodeURIComponent(path)}`; }
+
+    $("upBtn").addEventListener("click", () => loadFiles(parentPath(state.currentPath)));
+    $("refreshBtn").addEventListener("click", () => loadFiles());
+    $("newFolderBtn").addEventListener("click", async () => {
+      const name = prompt("请输入新文件夹名称"); if (!name) return;
+      try { await api("/api/mkdir", { json: { path: state.currentPath, name } }); toast("文件夹已创建"); await loadFiles(); } catch (error) { toast(error.message, true); }
+    });
+    async function renameEntry(entry) {
+      const newName = prompt("请输入新名称", entry.name); if (!newName || newName === entry.name) return;
+      try { await api("/api/rename", { json: { path: entry.path, newName } }); toast("重命名成功"); await loadFiles(); } catch (error) { toast(error.message, true); }
+    }
+    async function deleteEntry(entry) {
+      const detail = entry.isDir ? "文件夹及其中的所有内容" : "文件";
+      if (!confirm(`确定删除${detail}“${entry.name}”吗？此操作无法撤销。`)) return;
+      try { await api("/api/delete", { json: { path: entry.path } }); toast("删除成功"); await loadFiles(); } catch (error) { toast(error.message, true); }
+    }
+
+    $("uploadBtn").addEventListener("click", () => $("fileInput").click());
+    $("fileInput").addEventListener("change", async () => {
+      const files = Array.from($("fileInput").files || []); $("fileInput").value = ""; if (!files.length) return;
+      const existing = new Set(state.entries.filter(e => !e.isDir).map(e => e.name.toLocaleLowerCase()));
+      const conflicts = files.filter(f => existing.has(f.name.toLocaleLowerCase()));
+      if (conflicts.length && !confirm(`${conflicts.length} 个同名文件已经存在。是否覆盖更新？`)) return;
+      $("uploadProgress").classList.remove("hidden");
+      try {
+        for (let i=0; i<files.length; i++) await uploadOne(files[i], existing.has(files[i].name.toLocaleLowerCase()), i, files.length);
+        toast(`${files.length} 个文件上传完成`); await loadFiles();
+      } catch (error) { toast(error.message, true); }
+      finally { setTimeout(() => $("uploadProgress").classList.add("hidden"), 700); }
+    });
+
+    function uploadOne(file, overwrite, index, total) {
+      return new Promise((resolve, reject) => {
+        const form = new FormData(); form.append("file", file, file.name);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/upload?path=${encodeURIComponent(state.currentPath)}&overwrite=${overwrite ? 1 : 0}`);
+        xhr.setRequestHeader("X-CSRF-Token", state.csrf); xhr.withCredentials = true;
+        $("progressName").textContent = `正在上传 ${file.name}`;
+        xhr.upload.onprogress = event => {
+          if (!event.lengthComputable) return;
+          const part = event.loaded / event.total; const overall = ((index + part) / total) * 100;
+          $("progressBar").style.width = `${overall}%`; $("progressText").textContent = `${Math.round(overall)}%`;
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else { try { reject(new Error(JSON.parse(xhr.responseText).error || "上传失败")); } catch { reject(new Error("上传失败")); } }
+        };
+        xhr.onerror = () => reject(new Error("网络中断，上传未完成")); xhr.timeout = 2 * 60 * 60 * 1000; xhr.ontimeout = () => reject(new Error("上传超时")); xhr.send(form);
+      });
+    }
+
+    $("logoutBtn").addEventListener("click", async () => { try { await api("/api/logout", { method:"POST" }); } finally { state.me=null; state.csrf=""; showView("loginView"); } });
+    $("settingsBtn").addEventListener("click", () => { $("settingsFolder").value = state.me.shareDir || ""; $("settingsModal").classList.remove("hidden"); });
+    $("settingsCancel").addEventListener("click", () => $("settingsModal").classList.add("hidden"));
+    $("settingsPick").addEventListener("click", () => chooseFolder($("settingsFolder"), $("settingsPick"), true));
+    $("settingsSave").addEventListener("click", async () => {
+      try { await api("/api/settings/folder", { json: { folder: $("settingsFolder").value } }); state.me = await api("/api/me"); $("sharePath").textContent = `共享目录：${state.me.shareDir}`; state.currentPath=""; $("settingsModal").classList.add("hidden"); toast("共享目录已更新"); await loadFiles(""); } catch(error) { toast(error.message, true); }
+    });
+    $("shutdownBtn").addEventListener("click", async () => {
+      if (!confirm("确定停止内网文件共享服务吗？其他电脑将立即无法访问。")) return;
+      try { await api("/api/shutdown", { method:"POST" }); document.body.innerHTML='<div class="center-shell"><div class="auth-card"><h1>共享服务已停止</h1><p class="subtle">需要再次共享时，重新双击运行程序即可。</p></div></div>'; } catch(error) { toast(error.message, true); }
+    });
+    function escapeHTML(value) { const div=document.createElement("div"); div.textContent=String(value); return div.innerHTML; }
+    initialize();
+  </script>
+</body>
+</html>

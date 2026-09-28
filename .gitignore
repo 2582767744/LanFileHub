@@ -1,0 +1,11 @@
+# 构建产物通过 GitHub Release 发布
+/dist/
+
+# 本地运行和临时文件
+*.log
+*.tmp
+config.json
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
