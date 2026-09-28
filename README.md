@@ -4,7 +4,14 @@ LanFileHub 是一个面向 Windows 和 macOS 主电脑的轻量内网文件共�
 
 ## 下载
 
-Windows 和 macOS 成品包请从 [GitHub Releases](https://github.com/2582767744/-/releases) 下载。源码构建产物不会直接提交到 Git 历史。
+Windows 和 macOS 成品包请从 [GitHub Releases](https://github.com/2582767744/LanFileHub/releases) 下载。源码构建产物不会直接提交到 Git 历史。
+
+## 项目文档
+
+- [项目说明](项目说明.md)：产品定位、部署结构、安全边界、目录结构与维护方式
+- [版本记录](CHANGELOG.md)：各版本新增功能、变更和限制
+- [Windows 使用说明](使用说明.txt)
+- [macOS 使用说明](使用说明-macOS.txt)
 
 ## 第一版功能
 
